@@ -1,0 +1,16 @@
+package {{ base_package }}.constants;
+
+import java.util.List;
+
+public final class {{ constants_class_name }} {
+    private {{ constants_class_name }}() {}
+
+    public static final String MODULE_NAME = "{{ module_name }}";
+    public static final String TARGET_TABLE = "{{ target_table }}";
+    public static final String OWNER = "{{ owner }}";
+    public static final List<String> SUPPORTED_FUNCTION_CODES = List.of(
+{%- for code in supported_function_codes %}
+            "{{ code }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
+    );
+}

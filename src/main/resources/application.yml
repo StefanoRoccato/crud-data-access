@@ -1,0 +1,33 @@
+crud:
+  db:
+    user: ${DB_USER:}
+    password: ${DB_PASSWORD:}
+    tns: ${DB_TNS:}
+    conn-name: ${DB_CONN_NAME:}
+    tns-admin: ${TNS_ADMIN:}
+  metadata:
+    table-source-owner: ${TABLE_SOURCE_OWNER:VPO_CRUD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+

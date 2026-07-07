@@ -1,0 +1,35 @@
+package {{ base_package }}.repository;
+
+import {{ base_package }}.model.dto.CrudModuleResult;
+import {{ base_package }}.model.dto.IoParameters;
+import {{ base_package }}.model.dto.{{ record_class_name }};
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.stereotype.Repository;
+
+import javax.sql.DataSource;
+
+@Repository
+public class {{ repository_class_name }} extends AbstractOracleProcedureRepository {
+
+    public {{ repository_class_name }}(DataSource dataSource,
+                                       MeterRegistry meterRegistry,
+                                       CircuitBreakerRegistry circuitBreakerRegistry) {
+        super(dataSource, meterRegistry, circuitBreakerRegistry);
+    }
+
+    public CrudModuleResult<{{ record_class_name }}> execute(IoParameters ioParameters, {{ record_class_name }} record) {
+        String sql = "{ call {{ callable_name }}({{ sql_placeholders }}) }";
+        long start = System.currentTimeMillis();
+        return execute(sql, "{{ callable_name }}", cs -> {
+{% for line in binders %}
+            {{ line }}
+{% endfor %}
+        }, cs -> {
+{% for line in readers %}
+            {{ line }}
+{% endfor %}
+            return new CrudModuleResult<>(ioParameters, record, "{{ callable_name }}", "{{ target_table }}", System.currentTimeMillis() - start);
+        });
+    }
+}

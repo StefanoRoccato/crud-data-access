@@ -1,0 +1,7 @@
+package {{ base_package }}.model.dto;
+
+public record {{ record_class_name }}(
+{%- for f in fields %}
+        {{ f.java_type }} {{ f.java_name }}{% if not loop.last %}, {% endif %}
+{%- endfor %}
+) {}

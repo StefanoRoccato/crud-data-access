@@ -1,0 +1,14 @@
+# {{ module_name }} metadata
+
+- Owner: `{{ owner }}`
+- Callable name: `{{ callable_name }}`
+- Target table: `{{ target_table }}`
+- Supported function codes: `{{ supported_function_codes | join(', ') }}`
+- Scope: only banal CRUD generation
+
+## Arguments
+| Position | Oracle argument | Java name | Java type | Numeric | Nullable | Mode | Normalization |
+|---|---|---|---|---|---|---|---|
+{% for f in fields -%}
+| {{ f.position }} | {{ f.oracle_argument_name }} | {{ f.java_name }} | {{ f.java_type }} | {{ f.numeric }} | {{ f.nullable }} | {{ f.parameter_mode }} | {{ f.normalization_policy }} |
+{% endfor %}

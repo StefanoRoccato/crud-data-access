@@ -1,0 +1,103 @@
+package {{ base_package }}.service.impl;
+
+import {{ base_package }}.constants.{{ constants_class_name }};
+import {{ base_package }}.exception.ResourceNotFoundException;
+import {{ base_package }}.exception.UnsupportedCrudPatternException;
+import {{ base_package }}.model.dto.CrudModuleResult;
+import {{ base_package }}.model.dto.IoParameters;
+import {{ base_package }}.model.dto.{{ record_class_name }};
+import {{ base_package }}.repository.{{ repository_class_name }};
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class {{ service_impl_name }}Test {
+
+    @Mock
+    private {{ repository_class_name }} repository;
+
+    @InjectMocks
+    private {{ service_impl_name }} service;
+
+    @Test
+    @DisplayName("execute - happy path SR returns result")
+    void execute_happyPath_returnsResult() {
+        IoParameters ioParams = buildIoParameters("SR", 0);
+        {{ record_class_name }} record = buildRecord();
+        CrudModuleResult<{{ record_class_name }}> expected =
+                new CrudModuleResult<>(ioParams, record,
+                        {{ constants_class_name }}.MODULE_NAME, {{ constants_class_name }}.TARGET_TABLE, 10L);
+        when(repository.execute(any(), any())).thenReturn(expected);
+
+        CrudModuleResult<{{ record_class_name }}> result = service.execute(ioParams, record);
+
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("execute - returnCode 1 throws ResourceNotFoundException")
+    void execute_returnCode1_throwsResourceNotFoundException() {
+        IoParameters ioParams = buildIoParameters("SR", 1);
+        {{ record_class_name }} record = buildRecord();
+        CrudModuleResult<{{ record_class_name }}> notFoundResult =
+                new CrudModuleResult<>(ioParams, record,
+                        {{ constants_class_name }}.MODULE_NAME, {{ constants_class_name }}.TARGET_TABLE, 10L);
+        when(repository.execute(any(), any())).thenReturn(notFoundResult);
+
+        assertThatThrownBy(() -> service.execute(ioParams, record))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining({{ constants_class_name }}.MODULE_NAME);
+    }
+
+    @Test
+    @DisplayName("execute - unsupported function code throws UnsupportedCrudPatternException")
+    void execute_unsupportedFunctionCode_throwsUnsupportedCrudPatternException() {
+        IoParameters ioParams = buildIoParameters("XX", null);
+        {{ record_class_name }} record = buildRecord();
+
+        assertThatThrownBy(() -> service.execute(ioParams, record))
+                .isInstanceOf(UnsupportedCrudPatternException.class)
+                .hasMessageContaining("XX");
+    }
+
+    @Test
+    @DisplayName("execute - null function code throws UnsupportedCrudPatternException")
+    void execute_nullFunctionCode_throwsUnsupportedCrudPatternException() {
+        IoParameters ioParams = buildIoParameters(null, null);
+        {{ record_class_name }} record = buildRecord();
+
+        assertThatThrownBy(() -> service.execute(ioParams, record))
+                .isInstanceOf(UnsupportedCrudPatternException.class);
+    }
+
+    // ---- builders ----
+
+    private static IoParameters buildIoParameters(String functionCode, Integer returnCode) {
+        // IoParameters: functionCode, returnCode, flagAggiornaDb, flag1, tipoStoricita, flagTrovato,
+        // idTimestampInizioVal, idTimestampFineVal, idDataInizioVal, idDataFineVal, dataCont,
+        // idRiga, idLock, flUpdate, concurrentTempUpdate, timestampApp, sqlerrmc, livLog, sessionId
+        return new IoParameters(
+                functionCode, returnCode,
+                null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null
+        );
+    }
+
+    private static {{ record_class_name }} buildRecord() {
+        // TODO: populate with representative test values for {{ module_name }}
+        return new {{ record_class_name }}(
+{%- for f in fields %}
+                null{% if not loop.last %},{% endif %}
+{%- endfor %}
+        );
+    }
+}

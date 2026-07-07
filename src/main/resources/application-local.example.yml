@@ -1,0 +1,9 @@
+crud:
+  db:
+    user: ${DB_USER:}
+    password: ${DB_PASSWORD:}
+    tns: ${DB_TNS:}
+    conn-name: ${DB_CONN_NAME:}
+    tns-admin: ${TNS_ADMIN:}
+  metadata:
+    table-source-owner: VPO_CRUD

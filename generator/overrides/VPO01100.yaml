@@ -1,0 +1,14 @@
+module_name: VPO01100
+callable_name: VPO01100
+# Class name overrides — by default all class names are derived from the target table name
+# (e.g. INDIVIDUALE -> IndividualeRepository). Use these only to force a specific name.
+# record_class_name: IndividualeRecord
+# repository_class_name: IndividualeRepository
+# service_interface_name: IndividualeService
+# service_impl_name: IndividualeServiceImpl
+# constants_class_name: IndividualeConstants
+fields:
+  SEQ_EVENTO_CONTRATTO:
+    java_name: seqEventoContratto
+  COD_RAPPORTO:
+    java_name: codRapporto

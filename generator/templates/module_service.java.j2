@@ -1,0 +1,9 @@
+package {{ base_package }}.service;
+
+import {{ base_package }}.model.dto.CrudModuleResult;
+import {{ base_package }}.model.dto.IoParameters;
+import {{ base_package }}.model.dto.{{ record_class_name }};
+
+public interface {{ service_interface_name }} {
+    CrudModuleResult<{{ record_class_name }}> execute(IoParameters ioParameters, {{ record_class_name }} record);
+}

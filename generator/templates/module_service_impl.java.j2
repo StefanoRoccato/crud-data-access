@@ -1,0 +1,60 @@
+package {{ base_package }}.service.impl;
+
+import {{ base_package }}.constants.{{ constants_class_name }};
+import {{ base_package }}.exception.ResourceNotFoundException;
+import {{ base_package }}.exception.UnsupportedCrudPatternException;
+import {{ base_package }}.model.dto.CrudModuleResult;
+import {{ base_package }}.model.dto.IoParameters;
+import {{ base_package }}.model.dto.{{ record_class_name }};
+import {{ base_package }}.repository.{{ repository_class_name }};
+import {{ base_package }}.service.{{ service_interface_name }};
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class {{ service_impl_name }} implements {{ service_interface_name }} {
+
+    private static final Logger log = LoggerFactory.getLogger({{ service_impl_name }}.class);
+
+    private final {{ repository_class_name }} repository;
+
+    public {{ service_impl_name }}({{ repository_class_name }} repository) {
+        this.repository = repository;
+    }
+
+    @Override
+    @Transactional
+    public CrudModuleResult<{{ record_class_name }}> execute(IoParameters ioParameters, {{ record_class_name }} record) {
+        if (ioParameters.functionCode() == null
+                || !{{ constants_class_name }}.SUPPORTED_FUNCTION_CODES.contains(ioParameters.functionCode())) {
+            throw new UnsupportedCrudPatternException(
+                    "Function code not supported: [" + ioParameters.functionCode()
+                    + "]. Supported codes for {{ module_name }}: " + {{ constants_class_name }}.SUPPORTED_FUNCTION_CODES);
+        }
+
+        MDC.put("module", {{ constants_class_name }}.MODULE_NAME);
+        MDC.put("functionCode", ioParameters.functionCode());
+        try {
+            log.info("Executing CRUD module [{}] functionCode=[{}]",
+                    {{ constants_class_name }}.MODULE_NAME, ioParameters.functionCode());
+
+            CrudModuleResult<{{ record_class_name }}> result = repository.execute(ioParameters, record);
+
+            Integer returnCode = result.ioParameters().returnCode();
+            if (returnCode != null && returnCode == 1) {
+                throw new ResourceNotFoundException(
+                        {{ constants_class_name }}.MODULE_NAME + ": record not found (returnCode=1)");
+            }
+
+            log.info("CRUD module [{}] completed successfully returnCode=[{}]",
+                    {{ constants_class_name }}.MODULE_NAME, returnCode);
+            return result;
+        } finally {
+            MDC.remove("module");
+            MDC.remove("functionCode");
+        }
+    }
+}
