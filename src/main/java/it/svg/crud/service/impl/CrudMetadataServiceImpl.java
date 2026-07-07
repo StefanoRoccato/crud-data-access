@@ -1,4 +1,4 @@
-﻿package it.svg.crud.service.impl;
+package it.svg.crud.service.impl;
 
 import it.svg.crud.exception.UnsupportedCrudPatternException;
 import it.svg.crud.model.dto.ArgumentMetadataResponse;

@@ -1,4 +1,4 @@
-﻿package it.svg.crud.model.dto;
+package it.svg.crud.model.dto;
 
 public record IoParameters(
         String functionCode,

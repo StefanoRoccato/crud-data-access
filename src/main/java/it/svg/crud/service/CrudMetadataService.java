@@ -1,4 +1,4 @@
-﻿package it.svg.crud.service;
+package it.svg.crud.service;
 
 import it.svg.crud.model.dto.ArgumentMetadataResponse;
 

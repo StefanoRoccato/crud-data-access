@@ -1,4 +1,4 @@
-﻿package it.svg.crud.config;
+package it.svg.crud.config;
 
 import oracle.jdbc.pool.OracleDataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

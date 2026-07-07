@@ -1,4 +1,4 @@
-﻿package it.svg.crud.util;
+package it.svg.crud.util;
 
 public final class OracleTypeMapper {
     private OracleTypeMapper() {}

@@ -1,4 +1,4 @@
-﻿package it.svg.crud.exception;
+package it.svg.crud.exception;
 
 public class CrudDataAccessException extends RuntimeException {
     public CrudDataAccessException(String message) { super(message); }

@@ -1,4 +1,4 @@
-﻿package it.svg.crud.config;
+package it.svg.crud.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

@@ -1,4 +1,4 @@
-﻿package it.svg.crud.constants;
+package it.svg.crud.constants;
 
 public final class AppConstants {
     private AppConstants() {}

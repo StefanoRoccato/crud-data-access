@@ -1,4 +1,4 @@
-﻿package it.svg.crud.repository;
+package it.svg.crud.repository;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
