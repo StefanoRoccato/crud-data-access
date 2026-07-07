@@ -68,6 +68,42 @@ Il generator stampa su stderr un avviso chiaro quando scatta il fallback.
 
 ---
 
+## Uso come libreria Maven
+
+Il progetto produce `crud-data-access-core-1.0.0-SNAPSHOT.jar` (JAR standard, no fat-JAR).
+I moduli generati (`generated-modules/src/`) vengono inclusi tramite `build-helper-maven-plugin`.
+
+### Build + install locale
+```bash
+mvn install    # deposita in .m2 locale
+```
+
+### Distribuzione GitHub Packages
+```bash
+mvn deploy    # pubblica su maven.pkg.github.com/StefanoRoccato/crud-data-access
+```
+
+### Dipendenza per microservizi consumer
+```xml
+<dependency>
+    <groupId>it.svg.crud</groupId>
+    <artifactId>crud-data-access-core</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+### Auto-configuration Spring Boot
+La libreria si auto-configura tramite `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
+Attiva il component scan di `it.svg.crud` → tutti i bean CRUD (`IndividualeService`, ecc.) vengono registrati.
+
+**Regole di conflitto gestite automaticamente:**
+- `DataSourceConfig`: attiva solo se `crud.db.tns` è configurato (non interferisce con H2/jOOQ nei consumer)
+- `CrudOracleHealthIndicator`: attiva solo con `crud.db.tns`
+- `GlobalExceptionHandler` crud: registrato solo se il microservizio non ha già un `@RestControllerAdvice`
+- Repository bean: usano `@Repository("crudXxxRepository")` per evitare conflitti con omonimi nel microservizio
+
+---
+
 ## Architecture
 
 ### Java core (`src/main/java/it/svg/crud/`)
