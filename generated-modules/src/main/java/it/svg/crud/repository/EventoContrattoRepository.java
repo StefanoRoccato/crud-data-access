@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 
-@Repository
+@Repository("crudEventoContrattoRepository")
 public class EventoContrattoRepository extends AbstractOracleProcedureRepository {
 
     public EventoContrattoRepository(DataSource dataSource,

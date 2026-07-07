@@ -9,7 +9,8 @@ import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 
-@Repository
+{% set bean_name = "crud" + repository_class_name[0]|lower + repository_class_name[1:] %}
+@Repository("{{ bean_name }}")
 public class {{ repository_class_name }} extends AbstractOracleProcedureRepository {
 
     public {{ repository_class_name }}(DataSource dataSource,

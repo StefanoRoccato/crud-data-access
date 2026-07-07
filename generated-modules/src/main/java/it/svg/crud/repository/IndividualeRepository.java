@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 
-@Repository
+@Repository("crudIndividualeRepository")
 public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
     public IndividualeRepository(DataSource dataSource,

@@ -4,13 +4,23 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 
+/**
+ * Spring Actuator health indicator for the crud-data-access Oracle datasource.
+ *
+ * <p>Activated only when {@code crud.db.tns} is configured (i.e., when the library
+ * manages its own Oracle datasource). When the consuming application provides its own
+ * datasource (e.g., H2 for tests, jOOQ datasource), this indicator is not registered.
+ */
 @Component("crudOracle")
+@ConditionalOnProperty(prefix = "crud.db", name = "tns")
 public class CrudOracleHealthIndicator implements HealthIndicator {
 
     private final DataSource dataSource;
