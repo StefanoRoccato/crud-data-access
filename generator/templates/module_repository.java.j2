@@ -3,14 +3,73 @@ package {{ base_package }}.repository;
 import {{ base_package }}.model.dto.CrudModuleResult;
 import {{ base_package }}.model.dto.IoParameters;
 import {{ base_package }}.model.dto.{{ record_class_name }};
+{% if generation_strategy == 'SELECT' %}
+import {{ base_package }}.exception.CrudDataAccessException;
+import {{ base_package }}.exception.ResourceNotFoundException;
+import org.springframework.stereotype.Repository;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+{% else %}
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
+{% endif %}
 
 {% set bean_name = "crud" + repository_class_name[0]|lower + repository_class_name[1:] %}
 @Repository("{{ bean_name }}")
+{% if generation_strategy == 'SELECT' %}
+public class {{ repository_class_name }} {
+
+    private final DataSource dataSource;
+
+    public {{ repository_class_name }}(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public CrudModuleResult<{{ record_class_name }}> execute(IoParameters ioParameters, {{ record_class_name }} record) {
+        String sql = "{{ select_sql }}";
+        long start = System.currentTimeMillis();
+        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+{% for f in select_condition_fields %}
+            ps.setObject({{ loop.index }}, record.{{ f.java_name }}());
+{% endfor %}
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new ResourceNotFoundException("{{ module_name }}: record not found");
+                }
+
+                {{ record_class_name }} outRecord = new {{ record_class_name }}(
+{%- for f in fields %}
+{% if f.java_type == 'String' %}
+                        rs.getString("{{ f.oracle_argument_name }}")
+{% elif f.java_type in ('Integer', 'Long', 'java.math.BigDecimal') %}
+                        rs.getObject("{{ f.oracle_argument_name }}", {{ f.java_type }}.class)
+{% elif f.java_type == 'java.time.LocalDate' %}
+                        rs.getDate("{{ f.oracle_argument_name }}") != null ? rs.getDate("{{ f.oracle_argument_name }}").toLocalDate() : null
+{% elif f.java_type == 'java.time.LocalDateTime' %}
+                        rs.getTimestamp("{{ f.oracle_argument_name }}") != null ? rs.getTimestamp("{{ f.oracle_argument_name }}").toLocalDateTime() : null
+{% else %}
+                        ({{ f.java_type }}) rs.getObject("{{ f.oracle_argument_name }}")
+{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+                );
+
+                return new CrudModuleResult<>(ioParameters, outRecord, "{{ callable_name }}", "{{ target_table }}", System.currentTimeMillis() - start);
+            }
+        } catch (ResourceNotFoundException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new CrudDataAccessException("Select execution failed for {{ module_name }}", ex);
+        }
+    }
+}
+{% else %}
 public class {{ repository_class_name }} extends AbstractOracleProcedureRepository {
 
     public {{ repository_class_name }}(DataSource dataSource,
@@ -33,3 +92,4 @@ public class {{ repository_class_name }} extends AbstractOracleProcedureReposito
         });
     }
 }
+{% endif %}

@@ -3,8 +3,19 @@
 - Owner: `{{ owner }}`
 - Callable name: `{{ callable_name }}`
 - Target table: `{{ target_table }}`
+- Generation strategy: `{{ generation_strategy }}`
 - Supported function codes: `{{ supported_function_codes | join(', ') }}`
 - Scope: only banal CRUD generation
+
+{% if generation_strategy == 'SELECT' %}
+## Select fallback
+
+- Select owner: `{{ select_owner }}`
+- Short name: `{{ select_short_name }}`
+- Select table: `{{ select_table }}`
+- Select SQL: `{{ select_sql }}`
+- Condition columns: `{{ select_condition_columns | join(', ') }}`
+{% endif %}
 
 ## Arguments
 | Position | Oracle argument | Java name | Java type | Numeric | Nullable | Mode | Normalization |

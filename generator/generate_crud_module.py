@@ -47,17 +47,54 @@ where owner = '{table_source_owner}'
 order by line
 """
 
+INDEX_TABLE_SQL = """
+select table_name as tabella
+from all_indexes
+where owner = upper('{owner}')
+    and index_name like upper('{short_name}%')
+    and rownum = 1
+"""
+
+PK_COLUMNS_SQL = """
+select column_name
+from all_cons_columns
+where owner = upper('{owner}')
+    and constraint_name like upper('{short_name}_PK%')
+order by position
+"""
+
 TAB_COLUMNS_SQL = """
 select column_name, nullable, data_type, data_precision, data_scale
 from all_tab_columns
 where owner = upper('{owner}')
   and table_name = upper('{table_name}')
+  and column_name not in ('ID_RIGA', 'ID_TIMESTAMP_FINE_VAL', 'ID_DATA_INIZIO_VAL', 'ID_DATA_FINE_VAL', 'ID_SEQ_INS')
 order by column_id
 """
 
 
 def derive_owner(module_name: str) -> str:
     return (module_name or '')[:3].upper() + '_CRUD'
+
+
+def derive_schema_owner(module_name: str) -> str:
+    """Return business schema owner (e.g. VIAT42xx -> VIA)."""
+    return (module_name or '')[:3].upper()
+
+
+def derive_short_name(module_name: str) -> str:
+    """Return short module name used for index/PK lookup (e.g. VIAT4200 -> VIAT42)."""
+    upper = re.sub(r'[^A-Za-z0-9]', '', (module_name or '').upper())
+    if upper.endswith('00') and len(upper) > 2:
+        return upper[:-2]
+    return upper
+
+
+def strip_select_suffix(table_name: str) -> str:
+    """Strip final _S suffix used by some SELECT views."""
+    if not table_name:
+        return table_name
+    return re.sub(r'_[Ss]$', '', table_name.strip())
 
 
 def camel_case(name: str) -> str:
@@ -338,6 +375,131 @@ def csv_rows(text: str):
     return out
 
 
+def _resolve_target_table_fallback_sqlcl(args, target_table):
+    """Resolve target table fallback from ALL_INDEXES and PK columns from ALL_CONS_COLUMNS."""
+    if target_table:
+        return {
+            'target_table': target_table,
+            'strategy': 'PROCEDURE',
+            'select_owner': None,
+            'select_short_name': None,
+            'select_table': None,
+            'select_condition_columns': [],
+            'table_columns': [],
+        }
+
+    select_owner = derive_schema_owner(args.module)
+    short_name = derive_short_name(args.module)
+
+    idx_rows = csv_rows(run_sqlcl_query(
+        args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
+        INDEX_TABLE_SQL.format(owner=select_owner, short_name=short_name), args.java_home
+    ))
+    if not idx_rows:
+        return {
+            'target_table': None,
+            'strategy': 'PROCEDURE',
+            'select_owner': select_owner,
+            'select_short_name': short_name,
+            'select_table': None,
+            'select_condition_columns': [],
+            'table_columns': [],
+        }
+
+    fallback_table = idx_rows[0].get('TABELLA') or idx_rows[0].get('tabella')
+    select_table = strip_select_suffix(fallback_table)
+    table_name_for_columns = fallback_table
+
+    cond_rows = csv_rows(run_sqlcl_query(
+        args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
+        PK_COLUMNS_SQL.format(owner=select_owner, short_name=short_name), args.java_home
+    ))
+    condition_columns = [r.get('COLUMN_NAME') or r.get('column_name') for r in cond_rows]
+    condition_columns = [c for c in condition_columns if c]
+
+    col_rows = csv_rows(run_sqlcl_query(
+        args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
+        TAB_COLUMNS_SQL.format(owner=select_owner, table_name=table_name_for_columns), args.java_home
+    ))
+    table_columns = []
+    for c in col_rows:
+        table_columns.append({
+            'COLUMN_NAME': c.get('COLUMN_NAME') or c.get('column_name'),
+            'NULLABLE': c.get('NULLABLE') or c.get('nullable'),
+            'DATA_TYPE': c.get('DATA_TYPE') or c.get('data_type'),
+            'DATA_PRECISION': c.get('DATA_PRECISION') or c.get('data_precision'),
+            'DATA_SCALE': c.get('DATA_SCALE') or c.get('data_scale'),
+        })
+
+    return {
+        'target_table': fallback_table,
+        'strategy': 'SELECT',
+        'select_owner': select_owner,
+        'select_short_name': short_name,
+        'select_table': select_table,
+        'select_condition_columns': condition_columns,
+        'table_columns': table_columns,
+    }
+
+
+def _resolve_target_table_fallback_direct(args, cursor, target_table):
+    """Direct-connection variant of target table fallback."""
+    if target_table:
+        return {
+            'target_table': target_table,
+            'strategy': 'PROCEDURE',
+            'select_owner': None,
+            'select_short_name': None,
+            'select_table': None,
+            'select_condition_columns': [],
+            'table_columns': [],
+        }
+
+    select_owner = derive_schema_owner(args.module)
+    short_name = derive_short_name(args.module)
+
+    cursor.execute(INDEX_TABLE_SQL.format(owner=select_owner, short_name=short_name))
+    idx_rows = cursor.fetchall()
+    if not idx_rows:
+        return {
+            'target_table': None,
+            'strategy': 'PROCEDURE',
+            'select_owner': select_owner,
+            'select_short_name': short_name,
+            'select_table': None,
+            'select_condition_columns': [],
+            'table_columns': [],
+        }
+
+    fallback_table = idx_rows[0][0]
+    select_table = strip_select_suffix(fallback_table)
+    table_name_for_columns = fallback_table
+
+    cursor.execute(PK_COLUMNS_SQL.format(owner=select_owner, short_name=short_name))
+    condition_columns = [r[0] for r in cursor.fetchall() if r and r[0]]
+
+    cursor.execute(TAB_COLUMNS_SQL.format(owner=select_owner, table_name=table_name_for_columns))
+    table_columns = []
+    for c in cursor.fetchall():
+        table_columns.append({
+            'COLUMN_NAME': c[0],
+            'NULLABLE': c[1],
+            'DATA_TYPE': c[2],
+            'DATA_PRECISION': c[3],
+            'DATA_SCALE': c[4],
+        })
+
+    return {
+        'target_table': fallback_table,
+        'strategy': 'SELECT',
+        'select_owner': select_owner,
+        'select_short_name': short_name,
+        'select_table': select_table,
+        'select_condition_columns': condition_columns,
+        'table_columns': table_columns,
+    }
+
+
 def fetch_sqlcl(args):
     owner = args.db_owner or derive_owner(args.module)
 
@@ -359,6 +521,8 @@ def fetch_sqlcl(args):
         TABLE_SQL.format(table_source_owner=args.table_source_owner, module_name=args.module), args.java_home
     ))
     target_table = None if not table_rows else (table_rows[0].get('TABELLA') or table_rows[0].get('tabella'))
+    fallback_info = _resolve_target_table_fallback_sqlcl(args, target_table)
+    target_table = fallback_info['target_table']
 
     arg_rows = csv_rows(run_sqlcl_query(
         args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
@@ -399,6 +563,12 @@ def fetch_sqlcl(args):
         'callable_name': callable_name,
         'object_name': object_name,
         'target_table': target_table,
+        'generation_strategy': fallback_info['strategy'],
+        'select_owner': fallback_info['select_owner'],
+        'select_short_name': fallback_info['select_short_name'],
+        'select_table': fallback_info['select_table'],
+        'select_condition_columns': fallback_info['select_condition_columns'],
+        'table_columns': fallback_info['table_columns'],
         'arguments': args_out,
     }
 
@@ -424,6 +594,8 @@ def fetch_direct(args):
         cur.execute(TABLE_SQL.format(table_source_owner=args.table_source_owner, module_name=args.module))
         rows = cur.fetchall()
         target_table = None if not rows else rows[0][0]
+        fallback_info = _resolve_target_table_fallback_direct(args, cur, target_table)
+        target_table = fallback_info['target_table']
 
         cur.execute(ARGUMENTS_SQL.format(owner=owner, object_name=object_name))
         arg_rows = cur.fetchall()
@@ -465,6 +637,12 @@ def fetch_direct(args):
             'callable_name': callable_name,
             'object_name': object_name,
             'target_table': target_table,
+            'generation_strategy': fallback_info['strategy'],
+            'select_owner': fallback_info['select_owner'],
+            'select_short_name': fallback_info['select_short_name'],
+            'select_table': fallback_info['select_table'],
+            'select_condition_columns': fallback_info['select_condition_columns'],
+            'table_columns': fallback_info['table_columns'],
             'arguments': args_out,
         }
     finally:
@@ -479,25 +657,50 @@ def load_overrides(module_name, override_dir):
 
 
 def build_model(args, metadata, overrides):
+    generation_strategy = metadata.get('generation_strategy') or 'PROCEDURE'
     fields = []
     field_overrides = overrides.get('fields', {})
-    for a in metadata['arguments']:
-        ov = field_overrides.get(a['oracle_argument_name'], {})
-        numeric = is_numeric(a['data_type'])
-        nullable = ov.get('nullable', a['nullable'])
-        java_type = ov.get('java_type') or to_java_type(a['data_type'], a['data_precision'], a['data_scale'])
-        java_name = ov.get('java_name') or camel_case(a['oracle_argument_name'])
-        fields.append({
-            'position': a['position'],
-            'oracle_argument_name': a['oracle_argument_name'],
-            'java_name': java_name,
-            'java_name_first_upper': java_name[:1].upper() + java_name[1:],
-            'java_type': java_type,
-            'parameter_mode': a['parameter_mode'],
-            'numeric': numeric,
-            'nullable': bool(nullable),
-            'normalization_policy': 'ZERO_IF_NOT_NULLABLE_NUMERIC' if numeric and not nullable else 'NULL_OTHERWISE'
-        })
+
+    if generation_strategy == 'SELECT' and metadata.get('table_columns'):
+        condition_set = {c.upper() for c in (metadata.get('select_condition_columns') or [])}
+        for idx, c in enumerate(metadata['table_columns'], start=1):
+            oracle_name = c['COLUMN_NAME']
+            ov = field_overrides.get(oracle_name, {})
+            numeric = is_numeric(c['DATA_TYPE'])
+            nullable = ov.get('nullable', str(c.get('NULLABLE', 'Y')).upper() == 'Y')
+            java_type = ov.get('java_type') or to_java_type(c['DATA_TYPE'], c['DATA_PRECISION'], c['DATA_SCALE'])
+            java_name = ov.get('java_name') or camel_case(oracle_name)
+            fields.append({
+                'position': idx,
+                'oracle_argument_name': oracle_name,
+                'sql_column_name': oracle_name,
+                'java_name': java_name,
+                'java_name_first_upper': java_name[:1].upper() + java_name[1:],
+                'java_type': java_type,
+                'parameter_mode': 'IN' if oracle_name.upper() in condition_set else 'OUT',
+                'numeric': numeric,
+                'nullable': bool(nullable),
+                'normalization_policy': 'ZERO_IF_NOT_NULLABLE_NUMERIC' if numeric and not nullable else 'NULL_OTHERWISE'
+            })
+    else:
+        for a in metadata['arguments']:
+            ov = field_overrides.get(a['oracle_argument_name'], {})
+            numeric = is_numeric(a['data_type'])
+            nullable = ov.get('nullable', a['nullable'])
+            java_type = ov.get('java_type') or to_java_type(a['data_type'], a['data_precision'], a['data_scale'])
+            java_name = ov.get('java_name') or camel_case(a['oracle_argument_name'])
+            fields.append({
+                'position': a['position'],
+                'oracle_argument_name': a['oracle_argument_name'],
+                'sql_column_name': a['oracle_argument_name'],
+                'java_name': java_name,
+                'java_name_first_upper': java_name[:1].upper() + java_name[1:],
+                'java_type': java_type,
+                'parameter_mode': a['parameter_mode'],
+                'numeric': numeric,
+                'nullable': bool(nullable),
+                'normalization_policy': 'ZERO_IF_NOT_NULLABLE_NUMERIC' if numeric and not nullable else 'NULL_OTHERWISE'
+            })
 
     # Derive class name base from target table when available; fall back to module name.
     # If target_table is None or 'UNKNOWN' (Oracle metadata not reachable), use the module name.
@@ -521,16 +724,28 @@ def build_model(args, metadata, overrides):
     target_table_val = metadata['target_table'] or 'UNKNOWN'
 
     binders = []
-    for f in fields:
-        getter = f"record.{f['java_name_first_upper'][0].lower() + f['java_name_first_upper'][1:]}()"
-        sql_type = to_sql_type(f['java_type'])
-        if f['parameter_mode'] in ('IN', 'INOUT', 'IN/OUT'):
-            default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
-            binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter}, {sql_type});")
-        if f['parameter_mode'] in ('OUT', 'INOUT', 'IN/OUT'):
-            binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
+    readers = []
+    if generation_strategy == 'PROCEDURE':
+        for f in fields:
+            getter = f"record.{f['java_name_first_upper'][0].lower() + f['java_name_first_upper'][1:]}()"
+            sql_type = to_sql_type(f['java_type'])
+            if f['parameter_mode'] in ('IN', 'INOUT', 'IN/OUT'):
+                default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
+                binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter}, {sql_type});")
+            if f['parameter_mode'] in ('OUT', 'INOUT', 'IN/OUT'):
+                binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
 
-    readers = _build_readers(fields, record_class_name, callable_name, target_table_val)
+        readers = _build_readers(fields, record_class_name, callable_name, target_table_val)
+
+    select_table = metadata.get('select_table') or strip_select_suffix(target_table_val)
+    select_condition_columns = metadata.get('select_condition_columns') or []
+    condition_fields = [f for f in fields if f['oracle_argument_name'].upper() in {c.upper() for c in select_condition_columns}]
+    select_projection = ', '.join(f['oracle_argument_name'] for f in fields) if fields else '*'
+    if condition_fields:
+        where_clause = ' AND '.join(f"{f['oracle_argument_name']} = ?" for f in condition_fields)
+    else:
+        where_clause = '1 = 1'
+    select_sql = f"SELECT {select_projection} FROM {select_table} WHERE {where_clause}"
 
     model = {
         'base_package': BASE_PACKAGE,
@@ -544,10 +759,17 @@ def build_model(args, metadata, overrides):
         'service_interface_name': service_interface_name,
         'service_impl_name': service_impl_name,
         'constants_class_name': constants_class_name,
+        'generation_strategy': generation_strategy,
         'fields': fields,
         'sql_placeholders': ', '.join(['?'] * len(fields)),
         'binders': binders,
         'readers': readers,
+        'select_owner': metadata.get('select_owner') or derive_schema_owner(args.module),
+        'select_short_name': metadata.get('select_short_name') or derive_short_name(args.module),
+        'select_table': select_table,
+        'select_condition_columns': select_condition_columns,
+        'select_condition_fields': condition_fields,
+        'select_sql': select_sql,
         'supported_function_codes': SUPPORTED_FUNCTION_CODES,
     }
     return model
@@ -633,7 +855,7 @@ def main():
     elif not metadata.get('target_table'):
         print(
             f'>>> Warning: target_table non trovato su ALL_SOURCE per il modulo {args.module}.\n'
-            f'    I nomi delle classi verranno derivati dal nome modulo ({args.module}) come fallback.\n'
+            f'    Nessun fallback su ALL_INDEXES disponibile; i nomi classi useranno il modulo ({args.module}).\n'
             f'    Per forzare il nome tabella usa: --target-table <NOME_TABELLA>',
             file=sys.stderr
         )

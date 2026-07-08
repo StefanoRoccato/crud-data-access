@@ -3,8 +3,11 @@
 - Owner: `VPO_CRUD`
 - Callable name: `VPO01100`
 - Target table: `INDIVIDUALE_S`
+- Generation strategy: `PROCEDURE`
 - Supported function codes: `SR, UR, IR, DR`
 - Scope: only banal CRUD generation
+
+
 
 ## Arguments
 | Position | Oracle argument | Java name | Java type | Numeric | Nullable | Mode | Normalization |
