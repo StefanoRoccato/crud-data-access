@@ -30,7 +30,6 @@ public class {{ repository_class_name }} extends AbstractOracleProcedureReposito
 {% for line in readers %}
             {{ line }}
 {% endfor %}
-            return new CrudModuleResult<>(ioParameters, record, "{{ callable_name }}", "{{ target_table }}", System.currentTimeMillis() - start);
         });
     }
 }

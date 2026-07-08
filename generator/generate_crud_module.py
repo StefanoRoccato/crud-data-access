@@ -108,6 +108,118 @@ def to_sql_type(java_type: str) -> str:
     return _JAVA_TYPE_TO_SQL_TYPE.get(java_type, 'java.sql.Types.VARCHAR')
 
 
+# Ordered list of IoParameters constructor fields, the expected Oracle argument name
+# for the corresponding IO_ procedure parameter, and whether a Long→Integer cast is needed
+# (IoParameters.returnCode and .flagAggiornaDb are Integer, but the Oracle type maps to Long).
+_IO_PARAMS_CONSTRUCTOR = [
+    # (ioParameters_field,  oracle_arg_name,              needs_int_cast)
+    ('functionCode',         'IO_FUNCTION_CODE',           False),
+    ('returnCode',           'IO_RETURN_CODE',             True),
+    ('flagAggiornaDb',       'IO_FLAG_AGGIORNA_DB',        True),
+    ('flag1',                'IO_FLAG_1',                  False),
+    ('tipoStoricita',        'IO_TIPO_STORICITA',          False),
+    ('flagTrovato',          'IO_FLAG_TROVATO',            False),
+    ('idTimestampInizioVal', 'IO_ID_TIMESTAMP_INIZIO_VAL', False),
+    ('idTimestampFineVal',   'IO_ID_TIMESTAMP_FINE_VAL',   False),
+    ('idDataInizioVal',      'IO_ID_DATA_INIZIO_VAL',      False),
+    ('idDataFineVal',        'IO_ID_DATA_FINE_VAL',        False),
+    ('dataCont',             'IO_DATA_CONT',               False),
+    ('idRiga',               'IO_ID_RIGA',                 False),
+    ('idLock',               'IO_ID_LOCK',                 False),
+    ('flUpdate',             'IO_FL_UPDATE',               False),
+    ('concurrentTempUpdate', 'IO_CONCURRENT_TEMP_UPDATE',  False),
+    ('timestampApp',         'IO_TIMESTAMP_APP',           False),
+    ('sqlerrmc',             None,                         False),
+    ('livLog',               None,                         False),
+    ('sessionId',            None,                         False),
+]
+
+
+def _cs_read_lines(java_name: str, position: int, java_type: str) -> list:
+    """Return the Java line(s) needed to read one OUT parameter from a CallableStatement."""
+    if java_type == 'String':
+        return [f'String {java_name} = cs.getString({position});']
+    if java_type in ('Long', 'Integer', 'java.math.BigDecimal'):
+        return [f'{java_type} {java_name} = cs.getObject({position}, {java_type}.class);']
+    if java_type == 'java.time.LocalDate':
+        raw = f'raw{java_name[0].upper()}{java_name[1:]}'
+        return [
+            f'java.sql.Date {raw} = cs.getDate({position});',
+            f'java.time.LocalDate {java_name} = {raw} != null ? {raw}.toLocalDate() : null;',
+        ]
+    if java_type == 'java.time.LocalDateTime':
+        raw = f'raw{java_name[0].upper()}{java_name[1:]}'
+        return [
+            f'java.sql.Timestamp {raw} = cs.getTimestamp({position});',
+            f'java.time.LocalDateTime {java_name} = {raw} != null ? {raw}.toLocalDateTime() : null;',
+        ]
+    return [f'Object {java_name} = cs.getObject({position}); // TODO: unknown type {java_type}']
+
+
+def _build_readers(fields: list, record_class_name: str, callable_name: str, target_table: str) -> list:
+    """Build the list of Java lines for the extractor lambda body (reads OUT params + returns result)."""
+    out_modes = ('OUT', 'INOUT', 'IN/OUT')
+    out_fields = [f for f in fields if f['parameter_mode'] in out_modes]
+
+    if not out_fields:
+        return [
+            f'return new CrudModuleResult<>(ioParameters, record, "{callable_name}", "{target_table}", System.currentTimeMillis() - start);',
+        ]
+
+    args_by_oracle = {f['oracle_argument_name'].upper(): f for f in fields}
+
+    lines = ['try {']
+
+    io_out = [f for f in out_fields if f['oracle_argument_name'].upper().startswith('IO_')]
+    s_out  = [f for f in out_fields if not f['oracle_argument_name'].upper().startswith('IO_')]
+
+    if io_out:
+        lines.append('// Lettura parametri IO_ di output (INOUT)')
+        for f in io_out:
+            lines.extend(_cs_read_lines(f['java_name'], f['position'], f['java_type']))
+        lines.append('')
+
+    if s_out:
+        lines.append('// Lettura parametri S_ di output (OUT/INOUT)')
+        for f in s_out:
+            lines.extend(_cs_read_lines(f['java_name'], f['position'], f['java_type']))
+        lines.append('')
+
+    # outRecord construction
+    lines.append(f'{record_class_name} outRecord = new {record_class_name}(')
+    for i, f in enumerate(fields):
+        comma = '' if i == len(fields) - 1 else ','
+        pos_comment = f'// {f["position"]}'
+        if f['parameter_mode'] in out_modes:
+            lines.append(f'    {f["java_name"]}{comma}  {pos_comment}')
+        else:
+            lines.append(f'    record.{f["java_name"]}(){comma}  {pos_comment} - IN only')
+    lines.append(');')
+    lines.append('')
+
+    # updatedIoParams construction
+    lines.append('IoParameters updatedIoParams = new IoParameters(')
+    last_idx = len(_IO_PARAMS_CONSTRUCTOR) - 1
+    for idx, (io_field, oracle_arg, needs_int_cast) in enumerate(_IO_PARAMS_CONSTRUCTOR):
+        comma = '' if idx == last_idx else ','
+        field = args_by_oracle.get(oracle_arg) if oracle_arg else None
+        if field is not None and field['parameter_mode'] in out_modes:
+            jn = field['java_name']
+            expr = f'{jn} != null ? {jn}.intValue() : null' if needs_int_cast else jn
+        else:
+            expr = f'ioParameters.{io_field}()'
+        lines.append(f'    {expr}{comma}')
+    lines.append(');')
+    lines.append('')
+
+    lines.append(f'return new CrudModuleResult<>(updatedIoParams, outRecord, "{callable_name}", "{target_table}", System.currentTimeMillis() - start);')
+    lines.append('} catch (java.sql.SQLException e) {')
+    lines.append(f'    throw new it.svg.crud.exception.CrudDataAccessException("Error reading OUT parameters from {callable_name}", e);')
+    lines.append('}')
+
+    return lines
+
+
 def to_os_path(path_value):
     path_obj = Path(path_value).resolve()
     if os.name != 'nt':
@@ -405,25 +517,28 @@ def build_model(args, metadata, overrides):
     service_impl_name = overrides.get('service_impl_name') or f"{class_name_base}ServiceImpl"
     constants_class_name = overrides.get('constants_class_name') or f"{class_name_base}Constants"
 
+    callable_name = overrides.get('callable_name') or metadata['callable_name']
+    target_table_val = metadata['target_table'] or 'UNKNOWN'
+
     binders = []
-    readers = []
     for f in fields:
         getter = f"record.{f['java_name_first_upper'][0].lower() + f['java_name_first_upper'][1:]}()"
+        sql_type = to_sql_type(f['java_type'])
         if f['parameter_mode'] in ('IN', 'INOUT', 'IN/OUT'):
             default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
-            binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter});")
+            binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter}, {sql_type});")
         if f['parameter_mode'] in ('OUT', 'INOUT', 'IN/OUT'):
-            sql_type = to_sql_type(f['java_type'])
             binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
-            readers.append(f"// TODO leggere OUT param {f['oracle_argument_name']} posizione {f['position']}")
+
+    readers = _build_readers(fields, record_class_name, callable_name, target_table_val)
 
     model = {
         'base_package': BASE_PACKAGE,
         'module_name': args.module.upper(),
         'module_name_lower': args.module.lower(),
         'owner': metadata['owner'],
-        'callable_name': overrides.get('callable_name') or metadata['callable_name'],
-        'target_table': metadata['target_table'] or 'UNKNOWN',
+        'callable_name': callable_name,
+        'target_table': target_table_val,
         'record_class_name': record_class_name,
         'repository_class_name': repository_class_name,
         'service_interface_name': service_interface_name,
