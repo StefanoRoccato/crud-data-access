@@ -27,7 +27,7 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(2, record.ioReturnCode() == null ? null : record.ioReturnCode());
 
-            cs.registerOutParameter(2, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(2, java.sql.Types.BIGINT);
 
             cs.setObject(3, record.ioIdTimestampInizioVal() == null ? null : record.ioIdTimestampInizioVal());
 
@@ -39,7 +39,7 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(7, record.ioIdRiga() == null ? null : record.ioIdRiga());
 
-            cs.registerOutParameter(7, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(7, java.sql.Types.BIGINT);
 
             cs.setObject(8, record.ioFlagTrovato() == null ? null : record.ioFlagTrovato());
 
@@ -47,7 +47,7 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(9, record.ioIdLock() == null ? null : record.ioIdLock());
 
-            cs.registerOutParameter(9, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(9, java.sql.Types.BIGINT);
 
             cs.setObject(10, record.ioFlag1() == null ? null : record.ioFlag1());
 
@@ -67,11 +67,11 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(16, record.sSeqVariazione() == null ? null : record.sSeqVariazione());
 
-            cs.registerOutParameter(16, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(16, java.sql.Types.BIGINT);
 
             cs.setObject(17, record.sSeqEventoContratto() == null ? null : record.sSeqEventoContratto());
 
-            cs.registerOutParameter(17, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(17, java.sql.Types.BIGINT);
 
             cs.setObject(18, record.sCodStatoEvento() == null ? null : record.sCodStatoEvento());
 
@@ -87,23 +87,23 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(21, record.sDataOperazione() == null ? null : record.sDataOperazione());
 
-            cs.registerOutParameter(21, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(21, java.sql.Types.BIGINT);
 
             cs.setObject(22, record.sDataEffettoEvento() == null ? null : record.sDataEffettoEvento());
 
-            cs.registerOutParameter(22, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(22, java.sql.Types.DATE);
 
             cs.setObject(23, record.sTsRifStato() == null ? null : record.sTsRifStato());
 
-            cs.registerOutParameter(23, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(23, java.sql.Types.BIGINT);
 
             cs.setObject(24, record.sSeqElaborazione() == null ? null : record.sSeqElaborazione());
 
-            cs.registerOutParameter(24, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(24, java.sql.Types.BIGINT);
 
             cs.setObject(25, record.sSeqRapporto() == null ? null : record.sSeqRapporto());
 
-            cs.registerOutParameter(25, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(25, java.sql.Types.BIGINT);
 
             cs.setObject(26, record.sTipoRapporto() == null ? null : record.sTipoRapporto());
 
@@ -115,7 +115,7 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(28, record.sIdTimestampInizioVal() == null ? null : record.sIdTimestampInizioVal());
 
-            cs.registerOutParameter(28, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(28, java.sql.Types.BIGINT);
 
             cs.setObject(29, record.sIdFunzione() == null ? null : record.sIdFunzione());
 
@@ -131,7 +131,7 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.setObject(32, record.sIdLock() == null ? null : record.sIdLock());
 
-            cs.registerOutParameter(32, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(32, java.sql.Types.BIGINT);
 
             cs.setObject(33, record.sIdCommento() == null ? null : record.sIdCommento());
 

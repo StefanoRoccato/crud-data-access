@@ -27,15 +27,15 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(2, record.ioReturnCode() == null ? null : record.ioReturnCode());
 
-            cs.registerOutParameter(2, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(2, java.sql.Types.BIGINT);
 
             cs.setObject(3, record.ioIdTimestampInizioVal() == null ? null : record.ioIdTimestampInizioVal());
 
-            cs.registerOutParameter(3, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(3, java.sql.Types.BIGINT);
 
             cs.setObject(4, record.ioIdTimestampFineVal() == null ? null : record.ioIdTimestampFineVal());
 
-            cs.registerOutParameter(4, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(4, java.sql.Types.BIGINT);
 
             cs.setObject(5, record.ioIdDataInizioVal() == null ? null : record.ioIdDataInizioVal());
 
@@ -51,7 +51,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(8, record.ioIdRiga() == null ? null : record.ioIdRiga());
 
-            cs.registerOutParameter(8, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(8, java.sql.Types.BIGINT);
 
             cs.setObject(9, record.ioFlagTrovato() == null ? null : record.ioFlagTrovato());
 
@@ -59,7 +59,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(10, record.ioIdLock() == null ? null : record.ioIdLock());
 
-            cs.registerOutParameter(10, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(10, java.sql.Types.BIGINT);
 
             cs.setObject(11, record.ioFlag1() == null ? null : record.ioFlag1());
 
@@ -77,7 +77,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(16, record.sSeqEventoContratto() == null ? null : record.sSeqEventoContratto());
 
-            cs.registerOutParameter(16, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(16, java.sql.Types.BIGINT);
 
             cs.setObject(17, record.sTipoRifEsterno() == null ? null : record.sTipoRifEsterno());
 
@@ -109,7 +109,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(24, record.sDataPerfezionamento() == null ? null : record.sDataPerfezionamento());
 
-            cs.registerOutParameter(24, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(24, java.sql.Types.DATE);
 
             cs.setObject(25, record.sCodRapporto() == null ? null : record.sCodRapporto());
 
@@ -121,11 +121,11 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(27, record.sDataDecorrenza() == null ? null : record.sDataDecorrenza());
 
-            cs.registerOutParameter(27, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(27, java.sql.Types.DATE);
 
             cs.setObject(28, record.sDataScadenza() == null ? null : record.sDataScadenza());
 
-            cs.registerOutParameter(28, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(28, java.sql.Types.DATE);
 
             cs.setObject(29, record.sCodCoassicurazione() == null ? null : record.sCodCoassicurazione());
 
@@ -149,11 +149,11 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(34, record.sNumMesiResidRisc() == null ? null : record.sNumMesiResidRisc());
 
-            cs.registerOutParameter(34, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(34, java.sql.Types.BIGINT);
 
             cs.setObject(35, record.sImpImponProvvTrasf() == null ? null : record.sImpImponProvvTrasf());
 
-            cs.registerOutParameter(35, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(35, java.sql.Types.BIGINT);
 
             cs.setObject(36, record.sCodiceRamo() == null ? null : record.sCodiceRamo());
 
@@ -161,11 +161,11 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(37, record.sSeqConv() == null ? null : record.sSeqConv());
 
-            cs.registerOutParameter(37, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(37, java.sql.Types.BIGINT);
 
             cs.setObject(38, record.sSeqRapporto() == null ? null : record.sSeqRapporto());
 
-            cs.registerOutParameter(38, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(38, java.sql.Types.BIGINT);
 
             cs.setObject(39, record.sTipoIndividuale() == null ? null : record.sTipoIndividuale());
 
@@ -181,7 +181,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(42, record.sIdTimestampInizioVal() == null ? null : record.sIdTimestampInizioVal());
 
-            cs.registerOutParameter(42, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(42, java.sql.Types.BIGINT);
 
             cs.setObject(43, record.sIdFunzione() == null ? null : record.sIdFunzione());
 
@@ -197,7 +197,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(46, record.sIdLock() == null ? null : record.sIdLock());
 
-            cs.registerOutParameter(46, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(46, java.sql.Types.BIGINT);
 
             cs.setObject(47, record.sIdCommento() == null ? null : record.sIdCommento());
 
@@ -205,15 +205,15 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(48, record.sNumMesiPror() == null ? null : record.sNumMesiPror());
 
-            cs.registerOutParameter(48, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(48, java.sql.Types.BIGINT);
 
             cs.setObject(49, record.sDataRiprPagPremi() == null ? null : record.sDataRiprPagPremi());
 
-            cs.registerOutParameter(49, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(49, java.sql.Types.DATE);
 
             cs.setObject(50, record.sImpPrestazMaxFiscv() == null ? null : record.sImpPrestazMaxFiscv());
 
-            cs.registerOutParameter(50, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(50, java.sql.Types.BIGINT);
 
             cs.setObject(51, record.sTipoIndivLegale() == null ? null : record.sTipoIndivLegale());
 
@@ -229,7 +229,7 @@ public class IndividualeRepository extends AbstractOracleProcedureRepository {
 
             cs.setObject(54, record.sNumAnnoCoorte() == null ? null : record.sNumAnnoCoorte());
 
-            cs.registerOutParameter(54, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(54, java.sql.Types.BIGINT);
 
         }, cs -> {
 

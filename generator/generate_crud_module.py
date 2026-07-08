@@ -92,6 +92,22 @@ def is_numeric(oracle_type):
     return (oracle_type or '').upper() == 'NUMBER'
 
 
+# Maps a resolved Java type (as returned by to_java_type) to the corresponding java.sql.Types constant.
+_JAVA_TYPE_TO_SQL_TYPE = {
+    'String':                   'java.sql.Types.VARCHAR',
+    'Integer':                  'java.sql.Types.INTEGER',
+    'Long':                     'java.sql.Types.BIGINT',
+    'java.math.BigDecimal':     'java.sql.Types.NUMERIC',
+    'java.time.LocalDate':      'java.sql.Types.DATE',
+    'java.time.LocalDateTime':  'java.sql.Types.TIMESTAMP',
+}
+
+
+def to_sql_type(java_type: str) -> str:
+    """Return the java.sql.Types constant for the given Java type string."""
+    return _JAVA_TYPE_TO_SQL_TYPE.get(java_type, 'java.sql.Types.VARCHAR')
+
+
 def to_os_path(path_value):
     path_obj = Path(path_value).resolve()
     if os.name != 'nt':
@@ -397,7 +413,8 @@ def build_model(args, metadata, overrides):
             default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
             binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter});")
         if f['parameter_mode'] in ('OUT', 'INOUT', 'IN/OUT'):
-            binders.append(f"cs.registerOutParameter({f['position']}, java.sql.Types.VARCHAR);")
+            sql_type = to_sql_type(f['java_type'])
+            binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
             readers.append(f"// TODO leggere OUT param {f['oracle_argument_name']} posizione {f['position']}")
 
     model = {
