@@ -31,7 +31,7 @@ order by owner, object_type, object_name, procedure_name
 """
 
 ARGUMENTS_SQL = """
-select argument_name, position, sequence, data_type, in_out, data_level, data_precision, data_scale, type_owner, type_name
+select argument_name, position, sequence, data_type, in_out, data_level, data_precision, data_scale, data_length, char_length, type_owner, type_name
 from all_arguments
 where owner = upper('{owner}')
   and object_name = upper('{object_name}')
@@ -64,7 +64,7 @@ order by position
 """
 
 TAB_COLUMNS_SQL = """
-select column_name, nullable, data_type, data_precision, data_scale
+select column_name, nullable, data_type, data_precision, data_scale, char_length, data_length
 from all_tab_columns
 where owner = upper('{owner}')
   and table_name = upper('{table_name}')
@@ -129,6 +129,55 @@ def is_numeric(oracle_type):
     return (oracle_type or '').upper() == 'NUMBER'
 
 
+def is_char_type(oracle_type):
+    return (oracle_type or '').upper() in ('CHAR', 'NCHAR')
+
+
+def to_int_or_none(value):
+    try:
+        if value is None:
+            return None
+        return int(value)
+    except Exception:
+        return None
+
+
+def char_length_constant_name(java_name: str) -> str:
+    snake = re.sub(r'(?<!^)([A-Z])', r'_\1', java_name).upper()
+    return f'{snake}_LENGTH'
+
+
+def resolve_column_for_argument(column_map: dict, oracle_arg: str):
+    """Map procedure argument names to table columns, handling common legacy prefixes (e.g. S_)."""
+    key = (oracle_arg or '').upper()
+    if not key:
+        return None
+
+    col = column_map.get(key)
+    if col is not None:
+        return col
+
+    if key.startswith('S_'):
+        return column_map.get(key[2:])
+
+    return None
+
+
+def _distinct_upper(items):
+    """Return non-empty unique values preserving order, deduped case-insensitively."""
+    out = []
+    seen = set()
+    for item in items:
+        if not item:
+            continue
+        key = str(item).upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
+
+
 # Maps a resolved Java type (as returned by to_java_type) to the corresponding java.sql.Types constant.
 _JAVA_TYPE_TO_SQL_TYPE = {
     'String':                   'java.sql.Types.VARCHAR',
@@ -172,10 +221,17 @@ _IO_PARAMS_CONSTRUCTOR = [
 ]
 
 
-def _cs_read_lines(java_name: str, position: int, java_type: str) -> list:
+def _cs_read_lines(field: dict) -> list:
     """Return the Java line(s) needed to read one OUT parameter from a CallableStatement."""
+    java_name = field['java_name']
+    position = field['position']
+    java_type = field['java_type']
+
     if java_type == 'String':
-        return [f'String {java_name} = cs.getString({position});']
+        lines = [f'String {java_name} = cs.getString({position});']
+        if field.get('is_char_type') and field.get('char_length_constant'):
+            lines.append(f'{java_name} = normalizeCharOutput({java_name}, {field["char_length_constant"]});')
+        return lines
     if java_type in ('Long', 'Integer', 'java.math.BigDecimal'):
         return [f'{java_type} {java_name} = cs.getObject({position}, {java_type}.class);']
     if java_type == 'java.time.LocalDate':
@@ -213,13 +269,13 @@ def _build_readers(fields: list, record_class_name: str, callable_name: str, tar
     if io_out:
         lines.append('// Lettura parametri IO_ di output (INOUT)')
         for f in io_out:
-            lines.extend(_cs_read_lines(f['java_name'], f['position'], f['java_type']))
+            lines.extend(_cs_read_lines(f))
         lines.append('')
 
     if s_out:
         lines.append('// Lettura parametri S_ di output (OUT/INOUT)')
         for f in s_out:
-            lines.extend(_cs_read_lines(f['java_name'], f['position'], f['java_type']))
+            lines.extend(_cs_read_lines(f))
         lines.append('')
 
     # outRecord construction
@@ -429,6 +485,8 @@ def _resolve_target_table_fallback_sqlcl(args, target_table):
             'DATA_TYPE': c.get('DATA_TYPE') or c.get('data_type'),
             'DATA_PRECISION': c.get('DATA_PRECISION') or c.get('data_precision'),
             'DATA_SCALE': c.get('DATA_SCALE') or c.get('data_scale'),
+            'CHAR_LENGTH': c.get('CHAR_LENGTH') or c.get('char_length'),
+            'DATA_LENGTH': c.get('DATA_LENGTH') or c.get('data_length'),
         })
 
     return {
@@ -487,6 +545,8 @@ def _resolve_target_table_fallback_direct(args, cursor, target_table):
             'DATA_TYPE': c[2],
             'DATA_PRECISION': c[3],
             'DATA_SCALE': c[4],
+            'CHAR_LENGTH': c[5],
+            'DATA_LENGTH': c[6],
         })
 
     return {
@@ -531,23 +591,46 @@ def fetch_sqlcl(args):
 
     column_map = {}
     if target_table:
-        col_rows = csv_rows(run_sqlcl_query(
-            args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
-            TAB_COLUMNS_SQL.format(owner=owner, table_name=target_table), args.java_home
-        ))
-        for c in col_rows:
-            column_map[(c.get('COLUMN_NAME') or '').upper()] = c
+        table_candidates = [target_table]
+        stripped = strip_select_suffix(target_table)
+        if stripped and stripped.upper() != target_table.upper():
+            table_candidates.append(stripped)
+
+        owner_candidates = _distinct_upper([
+            owner,
+            args.table_source_owner,
+            derive_schema_owner(args.module),
+        ])
+
+        found = False
+        for owner_candidate in owner_candidates:
+            for table_name in table_candidates:
+                col_rows = csv_rows(run_sqlcl_query(
+                    args.sqlcl_path, args.db_user, args.db_password, args.db_tns, args.conn_name,
+                    TAB_COLUMNS_SQL.format(owner=owner_candidate, table_name=table_name), args.java_home
+                ))
+                if col_rows:
+                    for c in col_rows:
+                        column_map[(c.get('COLUMN_NAME') or '').upper()] = c
+                    found = True
+                    break
+            if found:
+                break
 
     args_out = []
     for a in arg_rows:
         if str(a.get('DATA_LEVEL', '')).strip() not in ('', '0'):
             continue
         oracle_arg = a.get('ARGUMENT_NAME') or f"ARG_{a.get('POSITION')}"
-        col = column_map.get(oracle_arg.upper())
+        col = resolve_column_for_argument(column_map, oracle_arg)
         nullable = True if col is None else (col.get('NULLABLE', 'Y').upper() == 'Y')
         data_type = (col.get('DATA_TYPE') if col else a.get('DATA_TYPE'))
         precision = (col.get('DATA_PRECISION') if col else a.get('DATA_PRECISION'))
         scale = (col.get('DATA_SCALE') if col else a.get('DATA_SCALE'))
+        data_length = (
+            (col.get('CHAR_LENGTH') or col.get('DATA_LENGTH'))
+            if col else (a.get('CHAR_LENGTH') or a.get('DATA_LENGTH'))
+        )
         args_out.append({
             'oracle_argument_name': oracle_arg,
             'position': int(a.get('POSITION') or 0),
@@ -555,6 +638,7 @@ def fetch_sqlcl(args):
             'parameter_mode': (a.get('IN_OUT') or 'IN').upper(),
             'data_precision': precision,
             'data_scale': scale,
+            'data_length': data_length,
             'nullable': nullable,
         })
 
@@ -602,26 +686,49 @@ def fetch_direct(args):
 
         column_map = {}
         if target_table:
-            cur.execute(TAB_COLUMNS_SQL.format(owner=owner, table_name=target_table))
-            for c in cur.fetchall():
-                column_map[(c[0] or '').upper()] = {
-                    'COLUMN_NAME': c[0],
-                    'NULLABLE': c[1],
-                    'DATA_TYPE': c[2],
-                    'DATA_PRECISION': c[3],
-                    'DATA_SCALE': c[4],
-                }
+            table_candidates = [target_table]
+            stripped = strip_select_suffix(target_table)
+            if stripped and stripped.upper() != target_table.upper():
+                table_candidates.append(stripped)
+
+            owner_candidates = _distinct_upper([
+                owner,
+                args.table_source_owner,
+                derive_schema_owner(args.module),
+            ])
+
+            found = False
+            for owner_candidate in owner_candidates:
+                for table_name in table_candidates:
+                    cur.execute(TAB_COLUMNS_SQL.format(owner=owner_candidate, table_name=table_name))
+                    fetched = cur.fetchall()
+                    if fetched:
+                        for c in fetched:
+                            column_map[(c[0] or '').upper()] = {
+                                'COLUMN_NAME': c[0],
+                                'NULLABLE': c[1],
+                                'DATA_TYPE': c[2],
+                                'DATA_PRECISION': c[3],
+                                'DATA_SCALE': c[4],
+                                'CHAR_LENGTH': c[5],
+                                'DATA_LENGTH': c[6],
+                            }
+                        found = True
+                        break
+                if found:
+                    break
 
         args_out = []
-        for argument_name, position, sequence, data_type, in_out, data_level, data_precision, data_scale, type_owner, type_name in arg_rows:
+        for argument_name, position, sequence, data_type, in_out, data_level, data_precision, data_scale, data_length, char_length, type_owner, type_name in arg_rows:
             if data_level not in (None, 0):
                 continue
             oracle_arg = argument_name or f'ARG_{position}'
-            col = column_map.get(oracle_arg.upper())
+            col = resolve_column_for_argument(column_map, oracle_arg)
             nullable = True if col is None else (str(col['NULLABLE']).upper() == 'Y')
             eff_data_type = col['DATA_TYPE'] if col else data_type
             eff_precision = col['DATA_PRECISION'] if col else data_precision
             eff_scale = col['DATA_SCALE'] if col else data_scale
+            eff_data_length = (col.get('CHAR_LENGTH') or col.get('DATA_LENGTH')) if col else (char_length or data_length)
             args_out.append({
                 'oracle_argument_name': oracle_arg,
                 'position': int(position or 0),
@@ -629,6 +736,7 @@ def fetch_direct(args):
                 'parameter_mode': (in_out or 'IN').upper(),
                 'data_precision': eff_precision,
                 'data_scale': eff_scale,
+                'data_length': eff_data_length,
                 'nullable': nullable,
             })
 
@@ -670,6 +778,8 @@ def build_model(args, metadata, overrides):
             nullable = ov.get('nullable', str(c.get('NULLABLE', 'Y')).upper() == 'Y')
             java_type = ov.get('java_type') or to_java_type(c['DATA_TYPE'], c['DATA_PRECISION'], c['DATA_SCALE'])
             java_name = ov.get('java_name') or camel_case(oracle_name)
+            oracle_data_type = (c['DATA_TYPE'] or '').upper()
+            char_length = to_int_or_none(ov.get('char_length', c.get('CHAR_LENGTH')))
             fields.append({
                 'position': idx,
                 'oracle_argument_name': oracle_name,
@@ -677,6 +787,10 @@ def build_model(args, metadata, overrides):
                 'java_name': java_name,
                 'java_name_first_upper': java_name[:1].upper() + java_name[1:],
                 'java_type': java_type,
+                'oracle_data_type': oracle_data_type,
+                'is_char_type': is_char_type(oracle_data_type),
+                'char_length': char_length,
+                'char_length_constant': char_length_constant_name(java_name) if is_char_type(oracle_data_type) and char_length else None,
                 'parameter_mode': 'IN' if oracle_name.upper() in condition_set else 'OUT',
                 'numeric': numeric,
                 'nullable': bool(nullable),
@@ -689,6 +803,8 @@ def build_model(args, metadata, overrides):
             nullable = ov.get('nullable', a['nullable'])
             java_type = ov.get('java_type') or to_java_type(a['data_type'], a['data_precision'], a['data_scale'])
             java_name = ov.get('java_name') or camel_case(a['oracle_argument_name'])
+            oracle_data_type = (a['data_type'] or '').upper()
+            char_length = to_int_or_none(ov.get('char_length', a.get('data_length')))
             fields.append({
                 'position': a['position'],
                 'oracle_argument_name': a['oracle_argument_name'],
@@ -696,6 +812,10 @@ def build_model(args, metadata, overrides):
                 'java_name': java_name,
                 'java_name_first_upper': java_name[:1].upper() + java_name[1:],
                 'java_type': java_type,
+                'oracle_data_type': oracle_data_type,
+                'is_char_type': is_char_type(oracle_data_type),
+                'char_length': char_length,
+                'char_length_constant': char_length_constant_name(java_name) if is_char_type(oracle_data_type) and char_length else None,
                 'parameter_mode': a['parameter_mode'],
                 'numeric': numeric,
                 'nullable': bool(nullable),
@@ -730,10 +850,18 @@ def build_model(args, metadata, overrides):
             getter = f"record.{f['java_name_first_upper'][0].lower() + f['java_name_first_upper'][1:]}()"
             sql_type = to_sql_type(f['java_type'])
             if f['parameter_mode'] in ('IN', 'INOUT', 'IN/OUT'):
-                default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
-                binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter}, {sql_type});")
+                if f.get('is_char_type') and f.get('char_length_constant'):
+                    binders.append(
+                        f"cs.setObject({f['position']}, normalizeCharInput({getter}, {f['char_length_constant']}), java.sql.Types.CHAR);"
+                    )
+                else:
+                    default_expr = '0' if f['numeric'] and not f['nullable'] else 'null'
+                    binders.append(f"cs.setObject({f['position']}, {getter} == null ? {default_expr} : {getter}, {sql_type});")
             if f['parameter_mode'] in ('OUT', 'INOUT', 'IN/OUT'):
-                binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
+                if f.get('is_char_type'):
+                    binders.append(f"cs.registerOutParameter({f['position']}, java.sql.Types.CHAR);")
+                else:
+                    binders.append(f"cs.registerOutParameter({f['position']}, {sql_type});")
 
         readers = _build_readers(fields, record_class_name, callable_name, target_table_val)
 
@@ -771,6 +899,8 @@ def build_model(args, metadata, overrides):
         'select_condition_fields': condition_fields,
         'select_sql': select_sql,
         'supported_function_codes': SUPPORTED_FUNCTION_CODES,
+        'char_fields': [f for f in fields if f.get('is_char_type') and f.get('char_length_constant')],
+        'has_char_fields': any(f.get('is_char_type') and f.get('char_length_constant') for f in fields),
     }
     return model
 

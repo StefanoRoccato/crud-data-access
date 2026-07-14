@@ -3,6 +3,7 @@ package it.svg.crud.repository;
 import it.svg.crud.model.dto.CrudModuleResult;
 import it.svg.crud.model.dto.IoParameters;
 import it.svg.crud.model.dto.EventoContrattoRecord;
+
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Repository;
@@ -10,8 +11,31 @@ import org.springframework.stereotype.Repository;
 import javax.sql.DataSource;
 
 
+
 @Repository("crudeventoContrattoRepository")
+
 public class EventoContrattoRepository extends AbstractOracleProcedureRepository {
+
+
+
+    private static final int S_COD_STATO_EVENTO_LENGTH = 2;
+
+    private static final int S_COD_EVENTO_LENGTH = 5;
+
+    private static final int S_CODICE_COMPAGNIA_PVG_LENGTH = 1;
+
+    private static final int S_TIPO_RAPPORTO_LENGTH = 2;
+
+    private static final int S_ID_OPERAZIONE_LENGTH = 1;
+
+    private static final int S_ID_STATO_ELAB_LENGTH = 1;
+
+    private static final int S_COD_MODAL_ELAB_INTERF_LENGTH = 1;
+
+    private static final int S_COD_DISPVO_LENGTH = 1;
+
+
+
 
     public EventoContrattoRepository(DataSource dataSource,
                                        MeterRegistry meterRegistry,
@@ -70,23 +94,23 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.registerOutParameter(16, java.sql.Types.BIGINT);
 
-            cs.setObject(17, record.sSeqEventoContratto() == null ? null : record.sSeqEventoContratto(), java.sql.Types.BIGINT);
+            cs.setObject(17, record.sSeqEventoContratto() == null ? 0 : record.sSeqEventoContratto(), java.sql.Types.BIGINT);
 
             cs.registerOutParameter(17, java.sql.Types.BIGINT);
 
-            cs.setObject(18, record.sCodStatoEvento() == null ? null : record.sCodStatoEvento(), java.sql.Types.VARCHAR);
+            cs.setObject(18, normalizeCharInput(record.sCodStatoEvento(), S_COD_STATO_EVENTO_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(18, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(18, java.sql.Types.CHAR);
 
-            cs.setObject(19, record.sCodEvento() == null ? null : record.sCodEvento(), java.sql.Types.VARCHAR);
+            cs.setObject(19, normalizeCharInput(record.sCodEvento(), S_COD_EVENTO_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(19, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(19, java.sql.Types.CHAR);
 
-            cs.setObject(20, record.sCodiceCompagniaPvg() == null ? null : record.sCodiceCompagniaPvg(), java.sql.Types.VARCHAR);
+            cs.setObject(20, normalizeCharInput(record.sCodiceCompagniaPvg(), S_CODICE_COMPAGNIA_PVG_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(20, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(20, java.sql.Types.CHAR);
 
-            cs.setObject(21, record.sDataOperazione() == null ? null : record.sDataOperazione(), java.sql.Types.BIGINT);
+            cs.setObject(21, record.sDataOperazione() == null ? 0 : record.sDataOperazione(), java.sql.Types.BIGINT);
 
             cs.registerOutParameter(21, java.sql.Types.BIGINT);
 
@@ -102,19 +126,19 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.registerOutParameter(24, java.sql.Types.BIGINT);
 
-            cs.setObject(25, record.sSeqRapporto() == null ? null : record.sSeqRapporto(), java.sql.Types.BIGINT);
+            cs.setObject(25, record.sSeqRapporto() == null ? 0 : record.sSeqRapporto(), java.sql.Types.BIGINT);
 
             cs.registerOutParameter(25, java.sql.Types.BIGINT);
 
-            cs.setObject(26, record.sTipoRapporto() == null ? null : record.sTipoRapporto(), java.sql.Types.VARCHAR);
+            cs.setObject(26, normalizeCharInput(record.sTipoRapporto(), S_TIPO_RAPPORTO_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(26, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(26, java.sql.Types.CHAR);
 
             cs.setObject(27, record.sIdOperatore() == null ? null : record.sIdOperatore(), java.sql.Types.VARCHAR);
 
             cs.registerOutParameter(27, java.sql.Types.VARCHAR);
 
-            cs.setObject(28, record.sIdTimestampInizioVal() == null ? null : record.sIdTimestampInizioVal(), java.sql.Types.BIGINT);
+            cs.setObject(28, record.sIdTimestampInizioVal() == null ? 0 : record.sIdTimestampInizioVal(), java.sql.Types.BIGINT);
 
             cs.registerOutParameter(28, java.sql.Types.BIGINT);
 
@@ -122,15 +146,15 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.registerOutParameter(29, java.sql.Types.VARCHAR);
 
-            cs.setObject(30, record.sIdOperazione() == null ? null : record.sIdOperazione(), java.sql.Types.VARCHAR);
+            cs.setObject(30, normalizeCharInput(record.sIdOperazione(), S_ID_OPERAZIONE_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(30, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(30, java.sql.Types.CHAR);
 
-            cs.setObject(31, record.sIdStatoElab() == null ? null : record.sIdStatoElab(), java.sql.Types.VARCHAR);
+            cs.setObject(31, normalizeCharInput(record.sIdStatoElab(), S_ID_STATO_ELAB_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(31, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(31, java.sql.Types.CHAR);
 
-            cs.setObject(32, record.sIdLock() == null ? null : record.sIdLock(), java.sql.Types.BIGINT);
+            cs.setObject(32, record.sIdLock() == null ? 0 : record.sIdLock(), java.sql.Types.BIGINT);
 
             cs.registerOutParameter(32, java.sql.Types.BIGINT);
 
@@ -138,13 +162,13 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             cs.registerOutParameter(33, java.sql.Types.VARCHAR);
 
-            cs.setObject(34, record.sCodModalElabInterf() == null ? null : record.sCodModalElabInterf(), java.sql.Types.VARCHAR);
+            cs.setObject(34, normalizeCharInput(record.sCodModalElabInterf(), S_COD_MODAL_ELAB_INTERF_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(34, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(34, java.sql.Types.CHAR);
 
-            cs.setObject(35, record.sCodDispvo() == null ? null : record.sCodDispvo(), java.sql.Types.VARCHAR);
+            cs.setObject(35, normalizeCharInput(record.sCodDispvo(), S_COD_DISPVO_LENGTH), java.sql.Types.CHAR);
 
-            cs.registerOutParameter(35, java.sql.Types.VARCHAR);
+            cs.registerOutParameter(35, java.sql.Types.CHAR);
 
         }, cs -> {
 
@@ -174,9 +198,15 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             String sCodStatoEvento = cs.getString(18);
 
+            sCodStatoEvento = normalizeCharOutput(sCodStatoEvento, S_COD_STATO_EVENTO_LENGTH);
+
             String sCodEvento = cs.getString(19);
 
+            sCodEvento = normalizeCharOutput(sCodEvento, S_COD_EVENTO_LENGTH);
+
             String sCodiceCompagniaPvg = cs.getString(20);
+
+            sCodiceCompagniaPvg = normalizeCharOutput(sCodiceCompagniaPvg, S_CODICE_COMPAGNIA_PVG_LENGTH);
 
             Long sDataOperazione = cs.getObject(21, Long.class);
 
@@ -192,6 +222,8 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             String sTipoRapporto = cs.getString(26);
 
+            sTipoRapporto = normalizeCharOutput(sTipoRapporto, S_TIPO_RAPPORTO_LENGTH);
+
             String sIdOperatore = cs.getString(27);
 
             Long sIdTimestampInizioVal = cs.getObject(28, Long.class);
@@ -200,7 +232,11 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             String sIdOperazione = cs.getString(30);
 
+            sIdOperazione = normalizeCharOutput(sIdOperazione, S_ID_OPERAZIONE_LENGTH);
+
             String sIdStatoElab = cs.getString(31);
+
+            sIdStatoElab = normalizeCharOutput(sIdStatoElab, S_ID_STATO_ELAB_LENGTH);
 
             Long sIdLock = cs.getObject(32, Long.class);
 
@@ -208,7 +244,11 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
             String sCodModalElabInterf = cs.getString(34);
 
+            sCodModalElabInterf = normalizeCharOutput(sCodModalElabInterf, S_COD_MODAL_ELAB_INTERF_LENGTH);
+
             String sCodDispvo = cs.getString(35);
+
+            sCodDispvo = normalizeCharOutput(sCodDispvo, S_COD_DISPVO_LENGTH);
 
             
 
@@ -342,4 +382,29 @@ public class EventoContrattoRepository extends AbstractOracleProcedureRepository
 
         });
     }
+
+
+    private static String normalizeCharInput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        if (trimmed.length() >= length) {
+            return trimmed.substring(0, length);
+        }
+        return trimmed + " ".repeat(length - trimmed.length());
+    }
+
+    private static String normalizeCharOutput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value.length() >= length) {
+            return value.substring(0, length);
+        }
+        return value + " ".repeat(length - value.length());
+    }
+
 }

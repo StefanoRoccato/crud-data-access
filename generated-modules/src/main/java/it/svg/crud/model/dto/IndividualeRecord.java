@@ -34,8 +34,8 @@ public record IndividualeRecord(
         String sCodComptoTabag, 
         String sFlagOpzioneRendita, 
         String sFlagTrasformazione, 
-        Long sNumMesiResidRisc, 
-        Long sImpImponProvvTrasf, 
+        Integer sNumMesiResidRisc, 
+        java.math.BigDecimal sImpImponProvvTrasf, 
         String sCodiceRamo, 
         Long sSeqConv, 
         Long sSeqRapporto, 
@@ -48,11 +48,11 @@ public record IndividualeRecord(
         String sIdStatoElab, 
         Long sIdLock, 
         String sIdCommento, 
-        Long sNumMesiPror, 
+        Integer sNumMesiPror, 
         java.time.LocalDate sDataRiprPagPremi, 
-        Long sImpPrestazMaxFiscv, 
+        java.math.BigDecimal sImpPrestazMaxFiscv, 
         String sTipoIndivLegale, 
         String sCodiceSistemaProven, 
         String sTipoOrigEmiss, 
-        Long sNumAnnoCoorte
+        Integer sNumAnnoCoorte
 ) {}

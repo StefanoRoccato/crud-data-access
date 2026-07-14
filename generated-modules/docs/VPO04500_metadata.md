@@ -3,8 +3,11 @@
 - Owner: `VPO_CRUD`
 - Callable name: `VPO04500`
 - Target table: `EVENTO_CONTRATTO`
+- Generation strategy: `PROCEDURE`
 - Supported function codes: `SR, UR, IR, DR`
 - Scope: only banal CRUD generation
+
+
 
 ## Arguments
 | Position | Oracle argument | Java name | Java type | Numeric | Nullable | Mode | Normalization |
@@ -25,22 +28,22 @@
 | 14 | IO_TIPO_STORICITA | ioTipoStoricita | String | False | True | IN/OUT | NULL_OTHERWISE |
 | 15 | IO_TIMESTAMP_APP | ioTimestampApp | Long | True | True | IN | NULL_OTHERWISE |
 | 16 | S_SEQ_VARIAZIONE | sSeqVariazione | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 17 | S_SEQ_EVENTO_CONTRATTO | sSeqEventoContratto | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 18 | S_COD_STATO_EVENTO | sCodStatoEvento | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 19 | S_COD_EVENTO | sCodEvento | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 20 | S_CODICE_COMPAGNIA_PVG | sCodiceCompagniaPvg | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 21 | S_DATA_OPERAZIONE | sDataOperazione | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 22 | S_DATA_EFFETTO_EVENTO | sDataEffettoEvento | java.time.LocalDate | False | True | IN/OUT | NULL_OTHERWISE |
+| 17 | S_SEQ_EVENTO_CONTRATTO | sSeqEventoContratto | Long | True | False | IN/OUT | ZERO_IF_NOT_NULLABLE_NUMERIC |
+| 18 | S_COD_STATO_EVENTO | sCodStatoEvento | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 19 | S_COD_EVENTO | sCodEvento | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 20 | S_CODICE_COMPAGNIA_PVG | sCodiceCompagniaPvg | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 21 | S_DATA_OPERAZIONE | sDataOperazione | Long | True | False | IN/OUT | ZERO_IF_NOT_NULLABLE_NUMERIC |
+| 22 | S_DATA_EFFETTO_EVENTO | sDataEffettoEvento | java.time.LocalDate | False | False | IN/OUT | NULL_OTHERWISE |
 | 23 | S_TS_RIF_STATO | sTsRifStato | Long | True | True | IN/OUT | NULL_OTHERWISE |
 | 24 | S_SEQ_ELABORAZIONE | sSeqElaborazione | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 25 | S_SEQ_RAPPORTO | sSeqRapporto | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 26 | S_TIPO_RAPPORTO | sTipoRapporto | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 27 | S_ID_OPERATORE | sIdOperatore | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 28 | S_ID_TIMESTAMP_INIZIO_VAL | sIdTimestampInizioVal | Long | True | True | IN/OUT | NULL_OTHERWISE |
-| 29 | S_ID_FUNZIONE | sIdFunzione | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 30 | S_ID_OPERAZIONE | sIdOperazione | String | False | True | IN/OUT | NULL_OTHERWISE |
+| 25 | S_SEQ_RAPPORTO | sSeqRapporto | Long | True | False | IN/OUT | ZERO_IF_NOT_NULLABLE_NUMERIC |
+| 26 | S_TIPO_RAPPORTO | sTipoRapporto | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 27 | S_ID_OPERATORE | sIdOperatore | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 28 | S_ID_TIMESTAMP_INIZIO_VAL | sIdTimestampInizioVal | Long | True | False | IN/OUT | ZERO_IF_NOT_NULLABLE_NUMERIC |
+| 29 | S_ID_FUNZIONE | sIdFunzione | String | False | False | IN/OUT | NULL_OTHERWISE |
+| 30 | S_ID_OPERAZIONE | sIdOperazione | String | False | False | IN/OUT | NULL_OTHERWISE |
 | 31 | S_ID_STATO_ELAB | sIdStatoElab | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 32 | S_ID_LOCK | sIdLock | Long | True | True | IN/OUT | NULL_OTHERWISE |
+| 32 | S_ID_LOCK | sIdLock | Long | True | False | IN/OUT | ZERO_IF_NOT_NULLABLE_NUMERIC |
 | 33 | S_ID_COMMENTO | sIdCommento | String | False | True | IN/OUT | NULL_OTHERWISE |
-| 34 | S_COD_MODAL_ELAB_INTERF | sCodModalElabInterf | String | False | True | IN/OUT | NULL_OTHERWISE |
+| 34 | S_COD_MODAL_ELAB_INTERF | sCodModalElabInterf | String | False | False | IN/OUT | NULL_OTHERWISE |
 | 35 | S_COD_DISPVO | sCodDispvo | String | False | True | IN/OUT | NULL_OTHERWISE |

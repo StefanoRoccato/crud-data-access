@@ -25,6 +25,13 @@ import javax.sql.DataSource;
 {% if generation_strategy == 'SELECT' %}
 public class {{ repository_class_name }} {
 
+{% if has_char_fields %}
+{% for f in char_fields %}
+    private static final int {{ f.char_length_constant }} = {{ f.char_length }};
+{% endfor %}
+
+{% endif %}
+
     private final DataSource dataSource;
 
     public {{ repository_class_name }}(DataSource dataSource) {
@@ -36,7 +43,11 @@ public class {{ repository_class_name }} {
         long start = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
 {% for f in select_condition_fields %}
+{% if f.is_char_type and f.char_length_constant %}
+            ps.setObject({{ loop.index }}, normalizeCharInput(record.{{ f.java_name }}(), {{ f.char_length_constant }}), java.sql.Types.CHAR);
+{% else %}
             ps.setObject({{ loop.index }}, record.{{ f.java_name }}());
+{% endif %}
 {% endfor %}
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -47,7 +58,11 @@ public class {{ repository_class_name }} {
                 {{ record_class_name }} outRecord = new {{ record_class_name }}(
 {%- for f in fields %}
 {% if f.java_type == 'String' %}
+{% if f.is_char_type and f.char_length_constant %}
+                        normalizeCharOutput(rs.getString("{{ f.oracle_argument_name }}"), {{ f.char_length_constant }})
+{% else %}
                         rs.getString("{{ f.oracle_argument_name }}")
+{% endif %}
 {% elif f.java_type in ('Integer', 'Long', 'java.math.BigDecimal') %}
                         rs.getObject("{{ f.oracle_argument_name }}", {{ f.java_type }}.class)
 {% elif f.java_type == 'java.time.LocalDate' %}
@@ -68,9 +83,41 @@ public class {{ repository_class_name }} {
             throw new CrudDataAccessException("Select execution failed for {{ module_name }}", ex);
         }
     }
+
+{% if has_char_fields %}
+    private static String normalizeCharInput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        if (trimmed.length() >= length) {
+            return trimmed.substring(0, length);
+        }
+        return trimmed + " ".repeat(length - trimmed.length());
+    }
+
+    private static String normalizeCharOutput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value.length() >= length) {
+            return value.substring(0, length);
+        }
+        return value + " ".repeat(length - value.length());
+    }
+{% endif %}
 }
 {% else %}
 public class {{ repository_class_name }} extends AbstractOracleProcedureRepository {
+
+{% if has_char_fields %}
+{% for f in char_fields %}
+    private static final int {{ f.char_length_constant }} = {{ f.char_length }};
+{% endfor %}
+
+{% endif %}
 
     public {{ repository_class_name }}(DataSource dataSource,
                                        MeterRegistry meterRegistry,
@@ -91,5 +138,30 @@ public class {{ repository_class_name }} extends AbstractOracleProcedureReposito
 {% endfor %}
         });
     }
+
+{% if has_char_fields %}
+    private static String normalizeCharInput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        if (trimmed.length() >= length) {
+            return trimmed.substring(0, length);
+        }
+        return trimmed + " ".repeat(length - trimmed.length());
+    }
+
+    private static String normalizeCharOutput(String value, int length) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value.length() >= length) {
+            return value.substring(0, length);
+        }
+        return value + " ".repeat(length - value.length());
+    }
+{% endif %}
 }
 {% endif %}
